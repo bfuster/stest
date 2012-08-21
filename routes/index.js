@@ -3,9 +3,14 @@ var classifier = require('classifier')
   , mongoose = require('mongoose')
   , io = require('socket.io').listen(4999);
 
-var db = mongoose.createConnection('localhost', 'test');
+var db = mongoose.createConnection('localhost', 'test')
+  , ObjectId = mongoose.Types.ObjectId;
 
-var schema = mongoose.Schema({ text: 'string', from: 'string' });
+var schema = mongoose.Schema({ 
+	text: String, 
+	when: {type: Date, default: Date.now},
+	category: String
+});
 var Msg = db.model('Msg', schema);
 
 var bayes = new classifier.Bayesian({
@@ -21,22 +26,27 @@ var bayes = new classifier.Bayesian({
 
 var clt = function() { console.log('trained'); }
 
-/*bayes.train('legal', 'good', clt);
+/*
+bayes.train('legal', 'good', clt);
 bayes.train('bom', 'good', clt);
 bayes.train('feio', 'bad', clt);
+bayes.train('é feio', 'bad', clt);
+bayes.train('bem feio', 'bad', clt);
+bayes.train('muito feio', 'bad', clt);
 bayes.train('chato', 'bad', clt);
+bayes.train('é chato', 'bad', clt);
 bayes.train('foda', 'good', clt);
 bayes.train('animal', 'good', clt);
 bayes.train('escroto', 'bad', clt);
 bayes.train('zuado', 'bad', clt);
-bayes.train('nao gostei', 'bad', clt);
+bayes.train('gostei', 'good', clt);
 bayes.train(':(', 'bad', clt);
 bayes.train(':)', 'good', clt);
 bayes.train(':D', 'good', clt);
 bayes.train(':P', 'good', clt);
 bayes.train('o/', 'good', clt);
 bayes.train('feio', 'bad', clt);
-bayes.train('nao feio', 'good', clt);*/
+*/
 
 var twit = new twitter({
   consumer_key: 'fSCtLpbUSxYRqJKJTTBkw',
@@ -46,13 +56,22 @@ var twit = new twitter({
 });
 
 io.sockets.on('connection', function (socket) {
-	twit.stream('statuses/filter', {'track':'dropsapp'}, function(stream) {
+	twit.stream('statuses/filter', {'track':'iosdrops'}, function(stream) {
 		stream.on('data', function (data) {
 			
 			var text = data.text;
 			bayes.classify(text, function(category) {
+				
+				var msg = new Msg({
+					text: text,
+					category: category
+				});
+
+				msg.save();
+
 				console.log("Text %s classified as %s", text, category);
-				socket.emit('input', {data: data, category: category});	
+				socket.emit('input', msg);//{data: data, category: category});
+
 			});
 			
 		});
@@ -73,13 +92,23 @@ exports.train = function(req, res) {
 
 	var msg = req.param('msg')
 	  , type = req.param('type')
+	  , _id = req.param('_id');
 
 	bayes.train(msg, type, function() {
-  		console.log('trained');
-  		res.send(200);
+		Msg.update({_id: new ObjectId(_id)}, {category: type}, {upsert: false, multi: false}, function(affected) {
+			console.log('affected: %d', affected)
+	  		console.log('trained');
+	  		res.send(200);
+		});
 	});
 
 };
+
+exports.msgs = function(req, res) {
+	Msg.find({}).sort('when').exec(function(err, msgs) {
+		res.send({msgs: msgs});
+	});
+}
 
 /*
  * Classify

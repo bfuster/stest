@@ -14,8 +14,31 @@
 		<script src="/socket.io/socket.io.js"></script>
 		<script>
 
-		  var socket = io.connect('http://localhost:4999');
-		  socket.on('input', function (data) {
+			$(document).ready(function() {
+
+				$.ajax({
+					url: '/allmsgs', 
+					success: function(result) {
+						_.each(result.msgs, displayMsg);
+			
+					  var socket = io.connect('http://localhost:4999');
+					  socket.on('input', displayMsg);
+					}
+				});
+
+			});
+
+
+		  var train = function(msg, type, _id) {
+		  	$.ajax({
+		  		url: '/train?msg='+msg+'&type='+type+'&_id='+_id,
+		  		success: function() {
+		  			alert('trained');
+		  		}
+		  	});
+		  }
+
+		  var displayMsg = function (data) {
 		    
 		    var bad = false,
 		        good = false;
@@ -26,18 +49,9 @@
 		  		good = true;
 		  	}
 
-		    var html = ich.msg_tpl({ data: data.data, category: data.category, bad: bad, good: good});
+		    var html = ich.msg_tpl({ data: data.text, category: data.category, bad: bad, good: good, _id: data._id});
 		    $("#msgs").prepend(html);
 
-		  });
-
-		  var train = function(msg, type) {
-		  	$.ajax({
-		  		url: '/train?msg='+msg+'&type='+type,
-		  		success: function() {
-		  			alert('trained');
-		  		}
-		  	});
 		  }
 
 		</script>
@@ -80,20 +94,20 @@
 <script type="text/html" id="msg_tpl">
 <li>
 	<div class="msg">
-		{{data.text}}
+		{{data}}
 	</div>
 	<div class="result">
 		
 		{{data.category}}
 
-		<a href="#" class='btn {{#bad}}btn-danger{{/bad}}' onclick="train('{{data.text}}', 'bad')">
+		<a href="#" class='btn {{#bad}}btn-danger{{/bad}}' onclick="train('{{data}}', 'bad', '{{_id}}')">
 			{{#bad}}
 				<i class='icon-ok'></i>
 			{{/bad}}
 		Bad</a> 
 
 
-		<a href="#" class='btn {{#good}}btn-success{{/good}}' onclick="train('{{data.text}}', 'good')">
+		<a href="#" class='btn {{#good}}btn-success{{/good}}' onclick="train('{{data}}', 'good', '{{_id}}')">
 			{{#good}}
 				<i class='icon-ok'></i>
 			{{/good}}
