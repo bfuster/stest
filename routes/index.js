@@ -1,17 +1,30 @@
 var classifier = require('classifier')
   , twitter = require('ntwitter')
   , mongoose = require('mongoose')
-  , io = require('socket.io').listen(4999);
+  , io = require('socket.io').listen(4999)
+  , net = require('net')
+  , _ = require('underscore');
 
 var db = mongoose.createConnection('localhost', 'test')
   , ObjectId = mongoose.Types.ObjectId;
 
+var posSchema = mongoose.Schema({
+	word: String,
+	raw: String,
+	pos: String,
+	points: String,
+	type: String
+});
 var schema = mongoose.Schema({ 
 	text: String, 
 	when: {type: Date, default: Date.now},
-	category: String
+	category: String,
+	pos: [posSchema]
 });
+
+
 var Msg = db.model('Msg', schema);
+
 
 var bayes = new classifier.Bayesian({
   backend: {
@@ -60,23 +73,31 @@ io.sockets.on('connection', function (socket) {
 		stream.on('data', function (data) {
 			
 			var text = data.text;
-			bayes.classify(text, function(category) {
-				
-				var msg = new Msg({
-					text: text,
-					category: category
-				});
+			var msg = new Msg({
+				text: text,
+				category: '',
+			});
 
+			freeling(text, function(err, results) {
+				console.log('results found: %j', results);
+				msg.pos = results;
+				msg.save();
+				socket.emit('input', msg);
+			});
+
+			/*bayes.classify(text, function(category) {
+				
 				msg.save();
 
 				console.log("Text %s classified as %s", text, category);
 				socket.emit('input', msg);//{data: data, category: category});
 
-			});
+			});*/
 			
 		});
 	});
 });
+
 /*
  * GET home page.
  */
@@ -120,5 +141,59 @@ exports.classify = function(req, res) {
 	bayes.classify(msg, function(category) {
 		res.send({result: category});
 	});
+
+};
+
+var tagset_1pos = {
+	'A': 'Adjetivo',
+	'R': 'Adverbio',
+	'D': 'Determinante',
+	'N': 'Nome',
+	'V': 'Verbo',
+	'P': 'Pronome',
+	'C': 'Conjuncao',
+	'I': 'Interjeicao',
+	'S': 'Preposicao',
+	'F': 'Pontuacao',
+	'Z': 'Numero'
+}
+
+var freeling = function(msg, callback) {
+
+	var socket = new net.Socket();
+	socket.on('connect', function() {
+		console.log('connected');
+		socket.end(msg, 'utf8', function() {
+			console.log('write was done!');
+		});
+	});
+	socket.on('error', function(err) {
+		callback("Erro ao tentar usar o freeling: " + err);
+	});
+	socket.on('data', function(data) {
+
+		var str = new String(data);
+		if (str.indexOf('FL-SERVER-READY') <= -1) {
+			var data_arr = new String(data).split('\n');
+
+			var results = [];
+			_.each(data_arr, function(item) {
+				var words = item.split(' ');
+				if (words.length == 4) {
+					var obj = {
+						word: words[0],
+						raw: words[1],
+						pos: words[2],
+						points: words[3]
+					};
+					var stpos = obj.pos[0];
+					obj.type = tagset_1pos[stpos];
+					results.push(obj);
+				}
+			});
+			callback(null, results);
+		}
+	});
+	socket.connect(50005, '192.168.56.101');
 
 };
