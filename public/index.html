@@ -49,7 +49,7 @@
 		  		good = true;
 		  	}
 
-		    var html = ich.msg_tpl({ data: data.text, category: data.category, bad: bad, good: good, _id: data._id});
+		    var html = ich.msg_tpl({ pos: data.pos, data: data.text, category: data.category, bad: bad, good: good, _id: data._id});
 		    $("#msgs").prepend(html);
 
 		  }
@@ -57,8 +57,14 @@
 		</script>
 		<style>
 			#content {
-				margin-top: 120px !important;
+				margin-top: 70px !important;
 			}
+			ul {
+				list-style: none;
+				margin: 0px 0px;
+				padding: 20px 0px;
+			}
+
 		</style>
 	</head>
 	<body>
@@ -77,7 +83,7 @@
 		<div class="container" id="content">
 			<div class="row">
 				<div class="span6">
-					<h2>Streaming messages</h2>
+					<h6>Streaming messages</h6>
 					<ul id="msgs">
 
 					</ul>
@@ -94,24 +100,25 @@
 <script type="text/html" id="msg_tpl">
 <li>
 	<div class="msg">
-		{{data}}
+		<h3 style='color: blue'>{{data}}</h3>
 	</div>
-	<div class="result">
-		
-		{{data.category}}
-
-		<a href="#" class='btn {{#bad}}btn-danger{{/bad}}' onclick="train('{{data}}', 'bad', '{{_id}}')">
-			{{#bad}}
-				<i class='icon-ok'></i>
-			{{/bad}}
-		Bad</a> 
-
-
-		<a href="#" class='btn {{#good}}btn-success{{/good}}' onclick="train('{{data}}', 'good', '{{_id}}')">
-			{{#good}}
-				<i class='icon-ok'></i>
-			{{/good}}
-		Good</a>
+	<div class="pos_info">
+		<table class="table table-bordered table-condensed">
+		<thead>
+			<tr><th>Palavra</th><th>Origem</th><th>Tipo</th><th>Code</th></th><th>Score</th></tr>
+		</thead>
+		<tbody>
+		{{#pos}}
+			<tr>
+				<td>{{word}}</td>
+				<td>{{raw}}</td>
+				<td>{{type}}</td>
+				<td>{{pos}}</td>
+				<td>{{points}}</td>
+			</tr>
+		{{/pos}}
+		</tbody>
+		</table>
 	</div>
 </li>
 </script>

@@ -69,9 +69,9 @@ var twit = new twitter({
 });
 
 io.sockets.on('connection', function (socket) {
-	twit.stream('statuses/filter', {'track':'iosdrops'}, function(stream) {
+	twit.stream('statuses/filter', {'track':'socialtrkr'}, function(stream) {
 		stream.on('data', function (data) {
-			
+			console.log('data from twitter!');
 			var text = data.text;
 			var msg = new Msg({
 				text: text,
@@ -79,6 +79,7 @@ io.sockets.on('connection', function (socket) {
 			});
 
 			freeling(text, function(err, results) {
+				if (err) throw err;
 				console.log('results found: %j', results);
 				msg.pos = results;
 				msg.save();
